@@ -711,11 +711,13 @@ EOF
   # Проверяем, что именно наши значения «победили» в итоговой конфигурации
   local eff
   eff=$(sshd -T 2>/dev/null)
-  local nports
+  local nports root_re="$ROOT_LOGIN"
   nports=$(grep -c '^port ' <<<"$eff" || true)
+  # sshd -T выводит prohibit-password под старым именем without-password
+  if [[ $ROOT_LOGIN == prohibit-password ]]; then root_re="(prohibit-password|without-password)"; fi
   if ! grep -qx "port $SSH_PORT" <<<"$eff" || [[ $nports != 1 ]] \
      || ! grep -qx "passwordauthentication $pw" <<<"$eff" \
-     || ! grep -qx "permitrootlogin $ROOT_LOGIN" <<<"$eff"; then
+     || ! grep -Eqx "permitrootlogin $root_re" <<<"$eff"; then
     err "Итоговая конфигурация sshd отличается от задуманной:"
     grep -E '^(port|passwordauthentication|permitrootlogin) ' <<<"$eff" | sed 's/^/    /' >&2
     rollback_ssh
